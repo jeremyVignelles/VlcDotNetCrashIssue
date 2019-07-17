@@ -1,11 +1,10 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Controls;
-using System.Windows.Threading;
 using Vlc.DotNet.Core;
 using Vlc.DotNet.Forms;
 
@@ -16,7 +15,7 @@ namespace VlcCrashRepro
     /// </summary>
     public partial class VideoPlayer : UserControl
     {
-        private static readonly TimeSpan StreamWatchDogInterval = TimeSpan.FromSeconds(10);
+        //private static readonly TimeSpan StreamWatchDogInterval = TimeSpan.FromSeconds(10);
 
         // ReSharper disable once AssignNullToNotNullAttribute
         // ReSharper disable once PossibleNullReferenceException
@@ -27,7 +26,7 @@ namespace VlcCrashRepro
 
         private VideoPlayerViewModel ViewModel { get; }
 
-        private readonly DispatcherTimer _streamWatchdogTimer = new DispatcherTimer();
+        //private readonly DispatcherTimer _streamWatchdogTimer = new DispatcherTimer();
         private readonly VlcControl _vlcControl;
 
         private readonly object _vlcControlLock = new object();
@@ -39,20 +38,6 @@ namespace VlcCrashRepro
 
             InitializeComponent();
 
-            _streamWatchdogTimer.Interval = StreamWatchDogInterval;
-            _streamWatchdogTimer.Tick += (sender, args) =>
-            {
-                var mediaUri = ViewModel.MediaUri;
-                if (mediaUri == null || _vlcControl.VlcMediaPlayer.IsPlaying())
-                {
-                    ViewModel.HasError = false;
-                    return;
-                }
-
-                ViewModel.HasError = true;
-                Console.WriteLine($"mediaPlayer {ViewModel.Index} is not playing stream {mediaUri}, attempting to restart it.");
-                Play(mediaUri);
-            };
             ViewModel.PropertyChanged += ViewModelOnPropertyChanged;
 
             _vlcControl = new VlcControl();
@@ -66,45 +51,26 @@ namespace VlcCrashRepro
 
         private void ViewModelOnPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            switch (e.PropertyName)
+            if (e.PropertyName == nameof(VideoPlayerViewModel.MediaUri))
             {
-                case nameof(VideoPlayerViewModel.MediaUri):
-                    Play(ViewModel.MediaUri);
-                    break;
+                Play(ViewModel.MediaUri);
             }
         }
 
         private void Play(Uri mediaUri)
         {
-            //If invoked from the main thread it deadlocks sometimes.
-            Task.Run(() =>
+            lock (_vlcControlLock)
             {
-                lock (_vlcControlLock)
+                Console.WriteLine($"{ViewModel.Index} {DateTime.Now.ToString(DateTimeFormatInfo.CurrentInfo.FullDateTimePattern)} Playing");
+                _vlcControl.Stop();
+                if (mediaUri == null)
                 {
-                    _streamWatchdogTimer.Stop();
-                    _vlcControl.Stop();
-                    if (mediaUri == null)
-                    {
-                        return;
-                    }
-
-                    _vlcControl.Play(mediaUri, "no-audio");
-                    _streamWatchdogTimer.Start();
+                    return;
                 }
-            });
-        }
 
-        private void Stop()
-        {
-            //If invoked from the main thread it deadlocks sometimes.
-            Task.Run(() =>
-            {
-                lock (_vlcControlLock)
-                {
-                    _streamWatchdogTimer.Stop();
-                    _vlcControl.Stop();
-                }
-            });
+                _vlcControl.Play(mediaUri);
+                Console.WriteLine($"{ViewModel.Index} {DateTime.Now.ToString(DateTimeFormatInfo.CurrentInfo.FullDateTimePattern)} Play done");
+            }
         }
 
         private void MediaPlayerOnLog(object sender, VlcMediaPlayerLogEventArgs e)

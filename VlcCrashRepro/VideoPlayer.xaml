@@ -10,12 +10,9 @@
         <Grid.RowDefinitions>
             <RowDefinition/>
             <RowDefinition Height="20"/>
-            <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
         <WindowsFormsHost x:Name="PlayerContainer" />
         <TextBlock Background="Black" Foreground="White"
                    Grid.Row="1" Text="{Binding MediaUri, StringFormat='{}URI: {0}'}"></TextBlock>
-        <TextBlock Background="Black" Foreground="White"
-                   Grid.Row="2" Text="{Binding HasError, StringFormat='{}Error: {0}'}"></TextBlock>
     </Grid>
 </UserControl>

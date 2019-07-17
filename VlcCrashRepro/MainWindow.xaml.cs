@@ -81,8 +81,8 @@ namespace VlcCrashRepro
                 {
                     var viewModel = viewModels[Rnd.Next(viewModels.Count)];
                     var uri = StreamUris[Rnd.Next(StreamUris.Count)];
-                    await Dispatcher.InvokeAsync(() => viewModel.AffectMedia(uri));
-                    await Task.Delay(Rnd.Next(10000));
+                    viewModel.AffectMedia(uri);
+                    await Task.Delay(Rnd.Next(5000)+500);
                 }
             }
 
